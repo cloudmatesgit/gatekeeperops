@@ -1,0 +1,7 @@
+.aws-sam/
+.env
+*.pyc
+__pycache__/
+*.log
+*.egg-info/
+.cache/
