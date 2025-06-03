@@ -1,0 +1,36 @@
+name: GateKeeperOps
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  scan-and-verify:
+    name: Infra + Code Quality Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install tools
+        run: |
+          pip install cfn-lint checkov bandit
+
+      - name: Lint SAM/CFN templates
+        run: cfn-lint templates/sample-template.yaml
+
+      - name: Run Checkov on templates
+        run: checkov -d templates/
+
+      - name: Run Bandit on Lambda code
+        run: bandit -r lambdas/ -lll
+
+      # GenAI Scanner
+      - name: AI Infra Review (Bedrock)
+        run: echo "Placeholder for Bedrock integration"
+
+      - name: Block on failure
+        if: failure()
+        run: exit 1
