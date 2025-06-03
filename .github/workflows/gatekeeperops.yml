@@ -56,7 +56,6 @@ jobs:
         run: |
           sam deploy \
             --stack-name gatekeeperops-dev \
-            --s3-bucket cloudmates-gatekeeper-repo-assets \
             --capabilities CAPABILITY_IAM \
             --region ap-southeast-2 \
             --no-confirm-changeset \
