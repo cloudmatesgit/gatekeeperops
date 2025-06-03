@@ -6,31 +6,58 @@ on:
       - main
 
 jobs:
-  scan-and-verify:
-    name: Infra + Code Quality Checks
+  scan-and-deploy:
+    name: Secure Scan + Deploy
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.12
+
       - name: Install tools
         run: |
-          pip install cfn-lint checkov bandit
+          pip install aws-sam-cli cfn-lint checkov bandit
 
-      - name: Lint SAM/CFN templates
-        run: cfn-lint templates/sample-template.yaml
+      - name: Validate SAM Template
+        run: sam validate
 
-      - name: Run Checkov on templates
-        run: checkov -d templates/
+      - name: Lint CloudFormation (cfn-lint)
+        run: cfn-lint template.yaml
 
-      - name: Run Bandit on Lambda code
-        run: bandit -r lambdas/ -lll
+      - name: Run Checkov (Security Checks)
+        run: checkov -f template.yaml
 
-      # GenAI Scanner
+      - name: Run Bandit (Code Scan)
+        run: bandit -r hello_world/ -lll
+
+      - name: SAM Build
+        run: sam build
+
       - name: AI Infra Review (Bedrock)
         run: echo "Placeholder for Bedrock integration"
 
-      - name: Block on failure
+      # Optional: Block deploy if anything fails before this point
+      - name: Stop on Failure
         if: failure()
         run: exit 1
+
+      - name: Configure AWS Credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::256457979819:role/GitHubActionsSAMDeployRole
+          aws-region: ap-southeast-2
+
+      - name: SAM Deploy
+        run: |
+          sam deploy \
+            --stack-name gatekeeperops-dev \
+            --s3-bucket cloudmates-gatekeeper-repo-assets \
+            --capabilities CAPABILITY_IAM \
+            --region ap-southeast-2 \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset
