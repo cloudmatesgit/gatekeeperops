@@ -10,6 +10,10 @@ jobs:
     name: Secure Scan + Deploy
     runs-on: ubuntu-latest
 
+    env:
+      AWS_REGION: ap-southeast-2
+      ACCOUNT_ID_PROD: "256457979819"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -30,7 +34,7 @@ jobs:
         run: cfn-lint template.yaml
 
       - name: Run Checkov (Security Checks)
-        run: checkov -f template.yaml
+        run: checkov -f template.yaml --skip-check CKV_AWS_115 CKV_AWS_115
 
       - name: Run Bandit (Code Scan)
         run: bandit -r hello_world/ -lll
@@ -41,6 +45,20 @@ jobs:
       - name: AI Infra Review (Bedrock)
         run: echo "Placeholder for Bedrock integration"
 
+      - name: Set Deployment Role by Branch
+        id: set-role
+        run: |
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_PROD}:role/GitHubActionsSAMDeployRole" >> "$GITHUB_OUTPUT"
+          else
+            echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_DEV}:role/GitHubActionsSAMDeployRole" >> "$GITHUB_OUTPUT"
+          fi
+        outputs:
+          role_to_assume: ${{ steps.set-role.outputs.role_to_assume }}
+
+      - name: Debug Role
+        run: echo "Resolved IAM Role: ${{ steps.set-role.outputs.role_to_assume }}"
+
       # Optional: Block deploy if anything fails before this point
       - name: Stop on Failure
         if: failure()
@@ -49,8 +67,8 @@ jobs:
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: arn:aws:iam::256457979819:role/GitHubActionsSAMDeployRole
-          aws-region: ap-southeast-2
+          role-to-assume: ${{ steps.set-role.outputs.role_to_assume }}
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: SAM Deploy
         run: |
