@@ -47,6 +47,19 @@ jobs:
       - name: Stop on Failure
         if: failure()
         run: exit 1
+
+      - name: Generate GitHub OIDC Token
+        id: generate-oidc-token
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const { data } = await github.rest.actions.getOIDCToken();
+            core.setOutput("token", data.token);
+
+      - name: Decode GitHub OIDC Token
+        run: |
+          echo "${{ steps.generate-oidc-token.outputs.token }}" | cut -d "." -f2 | base64 -d
+
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v2
         with:
