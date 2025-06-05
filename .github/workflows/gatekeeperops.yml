@@ -62,11 +62,19 @@ jobs:
         run: |
           echo "IAM Role: ${{ env.role_to_assume }}"
 
-      - name: Decode GitHub OIDC Token
+      - name: Request OIDC Token
+        id: oidc
+        run: |
+          echo "Fetching OIDC token"
+          curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" > oidc.json
+          cat oidc.json | jq -r '.value' > token.jwt
+
+      - name: Decode OIDC Token
         run: |
           echo "::group::OIDC JWT Payload"
-          curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | cut -d '.' -f2 | base64 -d
+          cut -d '.' -f2 token.jwt | base64 -d | jq
           echo "::endgroup::"
+
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v2
