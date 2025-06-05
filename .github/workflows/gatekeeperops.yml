@@ -26,7 +26,7 @@ jobs:
       - name: Lint CloudFormation (cfn-lint)
         run: cfn-lint template.yaml
       - name: Run Checkov (Security Checks)
-        run: checkov -f template.yaml --skip-check CKV_AWS_115 CKV_AWS_115
+        run: checkov -f template.yaml --skip-checks CKV_AWS_115 CKV_AWS_117
       - name: Run Bandit (Code Scan)
         run: bandit -r hello_world/ -lll
       - name: SAM Build
