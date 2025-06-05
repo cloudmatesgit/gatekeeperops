@@ -49,15 +49,13 @@ jobs:
         id: set-role
         run: |
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_PROD}:role/GitHubActionsSAMDeployRole" >> "$GITHUB_OUTPUT"
+            echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_PROD}:role/GitHubActionsSAMDeployRole" >> $GITHUB_OUTPUT
           else
-            echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_DEV}:role/GitHubActionsSAMDeployRole" >> "$GITHUB_OUTPUT"
+            echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_DEV}:role/GitHubActionsSAMDeployRole" >> $GITHUB_OUTPUT
           fi
-        outputs:
-          role_to_assume: ${{ steps.set-role.outputs.role_to_assume }}
 
-      - name: Debug Role
-        run: echo "Resolved IAM Role: ${{ steps.set-role.outputs.role_to_assume }}"
+      - name: Debug IAM Role
+        run: echo "IAM Role: ${{ steps.set-role.outputs.role_to_assume }}"
 
       # Optional: Block deploy if anything fails before this point
       - name: Stop on Failure
