@@ -1,70 +1,81 @@
----
 name: GateKeeperOps
+
 on:
   push:
     branches:
       - main
+
+permissions:
+  id-token: write
+  contents: read
+
 jobs:
   scan-and-deploy:
     name: Secure Scan + Deploy
     runs-on: ubuntu-latest
+
     env:
       AWS_REGION: ap-southeast-2
       ACCOUNT_ID_PROD: "256457979819"
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.12
+
       - name: Install tools
         run: |
           pip install aws-sam-cli cfn-lint checkov bandit
+
       - name: Validate SAM Template
         run: sam validate
-      - name: Lint CloudFormation (cfn-lint)
+
+      - name: Lint CloudFormation
         run: cfn-lint template.yaml
-      - name: Run Checkov (Security Checks)
+
+      - name: Run Checkov
         run: checkov -f template.yaml --skip-check CKV_AWS_115 --skip-check CKV_AWS_117
-      - name: Run Bandit (Code Scan)
+
+      - name: Run Bandit
         run: bandit -r hello_world/ -lll
+
       - name: SAM Build
         run: sam build
-      - name: AI Infra Review (Bedrock)
+
+      - name: AI Infra Review
         run: echo "Placeholder for Bedrock integration"
+
       - name: Set Deployment Role by Branch
         id: set-role
-        run: >
-          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
-            echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_PROD}:role/GitHubActionsSAMDeployRole" >> $GITHUB_OUTPUT
-          else
-            echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_DEV}:role/GitHubActionsSAMDeployRole" >> $GITHUB_OUTPUT
-          fi
-      - name: Debug IAM Role
         run: |
-          echo "IAM Role: ${{ steps.set-role.outputs.role_to_assume }}"
-      - name: Stop on Failure
-        if: failure()
-        run: exit 1
+          if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_PROD}:role/GitHubActionsSAMDeployRole" >> $GITHUB_ENV
+          else
+            echo "role_to_assume=arn:aws:iam::000000000000:role/OtherRole" >> $GITHUB_ENV
+          fi
 
-      - name: Generate GitHub OIDC Token
-        id: generate-oidc-token
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const { data } = await github.rest.actions.getOIDCToken();
-            core.setOutput("token", data.token);
+      - name: Debug IAM Role
+        run: echo "IAM Role: ${{ env.role_to_assume }}"
 
       - name: Decode GitHub OIDC Token
         run: |
-          echo "${{ steps.generate-oidc-token.outputs.token }}" | cut -d "." -f2 | base64 -d
+          echo "::group::OIDC JWT Payload"
+          curl -s -H "Authorization: bearer $ACTIONS_ID_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL" | cut -d '.' -f2 | base64 -d
+          echo "::endgroup::"
 
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          role-to-assume: ${{ steps.set-role.outputs.role_to_assume }}
+          role-to-assume: ${{ env.role_to_assume }}
           aws-region: ${{ env.AWS_REGION }}
+
+      - name: Verify AWS Identity
+        run: aws sts get-caller-identity
+
       - name: SAM Deploy
         run: |
           sam deploy \
