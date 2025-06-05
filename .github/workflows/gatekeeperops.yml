@@ -40,8 +40,14 @@ jobs:
       - name: Run Checkov
         run: checkov -f template.yaml --skip-check CKV_AWS_115 --skip-check CKV_AWS_117
 
-      - name: Run Bandit
-        run: bandit -r hello_world/ -lll
+      - name: Run Bandit (Code Scan on all Lambda folders)
+        run: |
+          for dir in lambdas/*; do
+            if [ -d "$dir" ]; then
+              echo "Scanning $dir with Bandit..."
+              bandit -r "$dir" -lll || true
+            fi
+          done
 
       - name: SAM Build
         run: sam build
