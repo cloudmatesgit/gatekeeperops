@@ -1,73 +1,57 @@
+---
 name: GateKeeperOps
-
 on:
   push:
     branches:
       - main
-
 jobs:
   scan-and-deploy:
     name: Secure Scan + Deploy
     runs-on: ubuntu-latest
-
     env:
       AWS_REGION: ap-southeast-2
       ACCOUNT_ID_PROD: "256457979819"
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: 3.12
-
       - name: Install tools
         run: |
           pip install aws-sam-cli cfn-lint checkov bandit
-
       - name: Validate SAM Template
         run: sam validate
-
       - name: Lint CloudFormation (cfn-lint)
         run: cfn-lint template.yaml
-
       - name: Run Checkov (Security Checks)
         run: checkov -f template.yaml --skip-check CKV_AWS_115 CKV_AWS_115
-
       - name: Run Bandit (Code Scan)
         run: bandit -r hello_world/ -lll
-
       - name: SAM Build
         run: sam build
-
       - name: AI Infra Review (Bedrock)
         run: echo "Placeholder for Bedrock integration"
-
       - name: Set Deployment Role by Branch
         id: set-role
-        run: |
+        run: >
           if [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
             echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_PROD}:role/GitHubActionsSAMDeployRole" >> $GITHUB_OUTPUT
           else
             echo "role_to_assume=arn:aws:iam::${ACCOUNT_ID_DEV}:role/GitHubActionsSAMDeployRole" >> $GITHUB_OUTPUT
           fi
-
       - name: Debug IAM Role
-        run: echo "IAM Role: ${{ steps.set-role.outputs.role_to_assume }}"
-
-      # Optional: Block deploy if anything fails before this point
+        run: |
+          echo "IAM Role: ${{ steps.set-role.outputs.role_to_assume }}"
       - name: Stop on Failure
         if: failure()
         run: exit 1
-
       - name: Configure AWS Credentials (OIDC)
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: ${{ steps.set-role.outputs.role_to_assume }}
           aws-region: ${{ env.AWS_REGION }}
-
       - name: SAM Deploy
         run: |
           sam deploy \
