@@ -59,7 +59,8 @@ jobs:
           fi
 
       - name: Debug IAM Role
-        run: echo "IAM Role: ${{ env.role_to_assume }}"
+        run: |
+          echo "IAM Role: ${{ env.role_to_assume }}"
 
       - name: Decode GitHub OIDC Token
         run: |
