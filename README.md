@@ -1,4 +1,4 @@
-# GatekeeperOps - Secure CI/CD Pipeline for AWS Serverless Applications
+# GatekeeperOps - Secure CI/CD Pipeline for AWS
 
 ## Overview
 
