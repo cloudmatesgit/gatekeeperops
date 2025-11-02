@@ -30,12 +30,26 @@ jobs:
       - name: Install tools
         run: |
           pip install aws-sam-cli cfn-lint checkov bandit
+          sudo apt-get update -y
+          sudo apt-get install -y jq curl
+          pip install aws-sam-cli cfn-lint checkov bandit
+          # Install CloudFormation Guard v2
+          curl -sSL -o cfn-guard.tar.gz https://github.com/aws-cloudformation/cloudformation-guard/releases/latest/download/cfn-guard-linux-x86_64.tar.gz
+          tar -xzf cfn-guard.tar.gz
+          sudo mv cfn-guard /usr/local/bin/cfn-guard
+          cfn-guard version
 
       - name: Validate SAM Template
         run: sam validate
 
       - name: Lint CloudFormation
         run: cfn-lint template.yaml
+
+      - name: Enforce Tag Policy
+        run: |
+          cfn-guard validate \
+            --rules policy/tagging.guard \
+            --data template.yaml
 
       - name: Run Checkov
         run: checkov -f template.yaml --skip-check CKV_AWS_115 --skip-check CKV_AWS_117
